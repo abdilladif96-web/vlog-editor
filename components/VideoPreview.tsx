@@ -8,7 +8,7 @@ export function VideoPreview() {
   const { videoState, togglePlay, setVideoState } = useVideo();
   const videoRef = useRef<HTMLVideoElement>(null);
 
-  // Sync video element with state
+  // Sync video element with state (Playing/Paused)
   useEffect(() => {
     if (videoRef.current) {
       if (videoState.isPlaying) {
@@ -21,6 +21,15 @@ export function VideoPreview() {
       }
     }
   }, [videoState.isPlaying]);
+
+  // Handle Seek Requests
+  useEffect(() => {
+    if (videoState.seekRequest !== null && videoRef.current) {
+        videoRef.current.currentTime = videoState.seekRequest;
+        // Reset seek request in state to avoid loop
+        setVideoState(prev => ({ ...prev, seekRequest: null }));
+    }
+  }, [videoState.seekRequest, setVideoState]);
 
   const handleTimeUpdate = () => {
     if (videoRef.current) {
@@ -40,14 +49,14 @@ export function VideoPreview() {
 
   return (
     <div className="flex-1 flex flex-col bg-black relative">
-      <div className="flex-1 flex items-center justify-center relative group cursor-pointer" onClick={togglePlay}>
+      <div className="flex-1 flex items-center justify-center relative group cursor-pointer" onClick={() => togglePlay()}>
         
         <video 
             ref={videoRef}
             src="https://storage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4"
             className="w-full h-full object-contain max-h-[calc(100vh-16rem)]"
             onTimeUpdate={handleTimeUpdate}
-            onEnded={() => togglePlay()}
+            onEnded={() => togglePlay(false)}
             loop
             playsInline
         />
@@ -65,7 +74,7 @@ export function VideoPreview() {
                     <SkipBack className="w-5 h-5 hover:text-blue-400 cursor-pointer" onClick={() => {
                         if(videoRef.current) videoRef.current.currentTime -= 5;
                     }} />
-                    <button onClick={togglePlay}>
+                    <button onClick={() => togglePlay()}>
                         {videoState.isPlaying ? (
                             <Pause className="w-6 h-6 hover:text-blue-400 cursor-pointer fill-white" />
                         ) : (

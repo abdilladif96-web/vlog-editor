@@ -11,7 +11,7 @@ interface Message {
 }
 
 export function ChatInterface() {
-  const { addEdit, togglePlay } = useVideo();
+  const { addEdit, togglePlay, seekTo } = useVideo();
   const [messages, setMessages] = useState<Message[]>([
     {
       id: '1',
@@ -31,12 +31,49 @@ export function ChatInterface() {
     scrollToBottom();
   }, [messages]);
 
+  const parseTime = (text: string): number | null => {
+    // Matches "0:30", "1:20", "10s", "10 seconds"
+    const timestampRegex = /(\d+):(\d+)|(\d+)\s*s(econds?)?/;
+    const match = text.match(timestampRegex);
+    
+    if (match) {
+        if (match[1] && match[2]) {
+            // Minutes:Seconds
+            return parseInt(match[1]) * 60 + parseInt(match[2]);
+        } else if (match[3]) {
+            // Seconds
+            return parseInt(match[3]);
+        }
+    }
+    return null;
+  };
+
   const processCommand = (text: string) => {
     const lowerText = text.toLowerCase();
     
-    if (lowerText.includes('play') || lowerText.includes('pause') || lowerText.includes('stop')) {
-      togglePlay();
-      return "I've toggled the video playback.";
+    if (lowerText.includes('play')) {
+        const time = parseTime(lowerText);
+        if (time !== null) {
+            seekTo(time);
+            togglePlay(true);
+            return `Playing from ${time} seconds.`;
+        }
+        togglePlay(true);
+        return "Starting playback.";
+    }
+
+    if (lowerText.includes('pause') || lowerText.includes('stop')) {
+      togglePlay(false);
+      return "Paused the video.";
+    }
+
+    if (lowerText.includes('jump') || lowerText.includes('seek') || lowerText.includes('go to')) {
+        const time = parseTime(lowerText);
+        if (time !== null) {
+            seekTo(time);
+            return `Jumped to ${time} seconds.`;
+        }
+        return "I didn't catch the time. Try 'jump to 10s' or 'seek to 1:30'.";
     }
     
     if (lowerText.includes('cut') || lowerText.includes('trim')) {
