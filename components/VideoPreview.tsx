@@ -1,34 +1,70 @@
 "use client";
 
+import { useRef, useEffect } from 'react';
 import { Play, Pause, SkipBack, SkipForward, Volume2, Scissors, Type } from 'lucide-react';
 import { useVideo } from '@/context/VideoContext';
 
 export function VideoPreview() {
-  const { videoState, togglePlay } = useVideo();
+  const { videoState, togglePlay, setVideoState } = useVideo();
+  const videoRef = useRef<HTMLVideoElement>(null);
+
+  // Sync video element with state
+  useEffect(() => {
+    if (videoRef.current) {
+      if (videoState.isPlaying) {
+        videoRef.current.play().catch(() => {
+            // Autoplay might be blocked
+            console.log("Autoplay blocked or waiting for user interaction");
+        });
+      } else {
+        videoRef.current.pause();
+      }
+    }
+  }, [videoState.isPlaying]);
+
+  const handleTimeUpdate = () => {
+    if (videoRef.current) {
+      setVideoState(prev => ({
+        ...prev,
+        currentTime: videoRef.current!.currentTime,
+        duration: videoRef.current!.duration || 0
+      }));
+    }
+  };
+
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  };
 
   return (
     <div className="flex-1 flex flex-col bg-black relative">
       <div className="flex-1 flex items-center justify-center relative group cursor-pointer" onClick={togglePlay}>
-        {/* Placeholder for actual video element */}
-        <div className="text-zinc-500 flex flex-col items-center gap-4">
-           <div className={`w-24 h-24 rounded-full border-2 border-zinc-700 flex items-center justify-center transition-all ${videoState.isPlaying ? 'scale-90 opacity-50' : 'scale-100 opacity-100'}`}>
-             {videoState.isPlaying ? (
-                <Pause className="w-10 h-10 fill-zinc-700" />
-             ) : (
-                <Play className="w-10 h-10 ml-1 fill-zinc-700" />
-             )}
-           </div>
-           <p>{videoState.isPlaying ? 'Playing Preview...' : 'Video Paused'}</p>
-        </div>
         
-        {/* Overlay controls (mock) */}
+        <video 
+            ref={videoRef}
+            src="https://storage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4"
+            className="w-full h-full object-contain max-h-[calc(100vh-16rem)]"
+            onTimeUpdate={handleTimeUpdate}
+            onEnded={() => togglePlay()}
+            loop
+            playsInline
+        />
+
+        {/* Overlay controls */}
         <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-4 opacity-0 group-hover:opacity-100 transition-opacity" onClick={(e) => e.stopPropagation()}>
             <div className="h-1 bg-zinc-600 rounded-full mb-4 overflow-hidden cursor-pointer">
-                <div className="h-full w-1/3 bg-blue-500"></div>
+                <div 
+                    className="h-full bg-blue-500 transition-all duration-100 ease-linear"
+                    style={{ width: `${(videoState.currentTime / (videoState.duration || 1)) * 100}%` }}
+                ></div>
             </div>
             <div className="flex items-center justify-between">
                 <div className="flex items-center gap-4 text-white">
-                    <SkipBack className="w-5 h-5 hover:text-blue-400 cursor-pointer" />
+                    <SkipBack className="w-5 h-5 hover:text-blue-400 cursor-pointer" onClick={() => {
+                        if(videoRef.current) videoRef.current.currentTime -= 5;
+                    }} />
                     <button onClick={togglePlay}>
                         {videoState.isPlaying ? (
                             <Pause className="w-6 h-6 hover:text-blue-400 cursor-pointer fill-white" />
@@ -36,14 +72,27 @@ export function VideoPreview() {
                             <Play className="w-6 h-6 hover:text-blue-400 cursor-pointer fill-white" />
                         )}
                     </button>
-                    <SkipForward className="w-5 h-5 hover:text-blue-400 cursor-pointer" />
-                    <span className="text-sm font-mono">00:00 / 00:00</span>
+                    <SkipForward className="w-5 h-5 hover:text-blue-400 cursor-pointer" onClick={() => {
+                        if(videoRef.current) videoRef.current.currentTime += 5;
+                    }} />
+                    <span className="text-sm font-mono">
+                        {formatTime(videoState.currentTime)} / {formatTime(videoState.duration)}
+                    </span>
                 </div>
                 <div className="flex items-center gap-4 text-white">
                     <Volume2 className="w-5 h-5 hover:text-blue-400 cursor-pointer" />
                 </div>
             </div>
         </div>
+
+        {/* Play overlay when paused */}
+        {!videoState.isPlaying && (
+            <div className="absolute inset-0 flex items-center justify-center bg-black/20 pointer-events-none">
+                <div className="w-20 h-20 rounded-full bg-black/50 flex items-center justify-center backdrop-blur-sm">
+                    <Play className="w-8 h-8 text-white ml-1 fill-white" />
+                </div>
+            </div>
+        )}
       </div>
 
       {/* Edits Timeline / List */}
